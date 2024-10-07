@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script>
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(";").shift();
+      }
+      if(!getCookie('token')){
+        window.location.href = "./login.html";
+      }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      .background-image {
+        background-image: url("img/Rectangle 4.png");
+        background-size: cover;
+        background-position: center;
+        border-radius: 1.5rem; /* Matches the rounded corners */
+        padding: 2rem; /* Outer padding to create space for inner content */
+      }
+      .content {
+        background-color: white; /* Inner solid background */
+        border-radius: 1.5rem; /* Rounded corners */
+        padding: 4rem; /* Adjust this padding as needed */
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Optional shadow for depth */
+      }
+    </style>
+  </head>
+  <body class="flex items-center justify-center min-h-screen">
+    <div class="background-image">
+      <div class="content text-center">
+        <h1
+          class="text-5xl font-bold mb-8"
+          style="font-family: 'Press Start 2P', cursive"
+        >
+          LET'S GET STARTED !!
+        </h1>
+        <p class="text-2xl mb-6">Choose your Subject</p>
+
+        <!-- Added option to select number of questions -->
+        <form action="quiz.php" method="POST">
+          <div class="mb-12">
+            <label for="num_questions" class="text-xl font-bold mb-4"
+              >Select Number of Questions</label
+            >
+            <select
+              name="num_questions"
+              id="num_questions"
+              class="block mx-auto mt-2 bg-gray-200 text-xl p-2 rounded-lg"
+            >
+              <option value="5">5 Questions</option>
+              <option value="10" selected>10 Questions</option>
+              <option value="15">15 Questions</option>
+              <option value="20">20 Questions</option>
+            </select>
+          </div>
+          <div class="flex justify-center space-x-16">
+            <div class="text-center">
+              <button type="submit" name="subject" value="maths">
+                <div
+                  class="w-32 h-32 bg-purple-500 rounded-lg mb-4 flex items-center justify-center"
+                >
+                  <img
+                    src="img/maths.png"
+                    alt="Maths Icon"
+                    class="w-24 h-24 rounded-lg object-cover"
+                  />
+                </div>
+                <p
+                  class="font-bold text-xl"
+                  style="font-family: 'Press Start 2P', cursive"
+                >
+                  MATHS
+                </p>
+              </button>
+            </div>
+            <div class="text-center">
+              <button type="submit" name="subject" value="chemistry">
+                <div
+                  class="w-32 h-32 bg-purple-500 rounded-lg mb-4 flex items-center justify-center"
+                >
+                  <img
+                    src="img/chem.png"
+                    alt="Chemistry Icon"
+                    class="w-24 h-24 rounded-lg object-cover"
+                  />
+                </div>
+                <p
+                  class="font-bold text-xl"
+                  style="font-family: 'Press Start 2P', cursive"
+                >
+                  CHEM
+                </p>
+              </button>
+            </div>
+            <div class="text-center">
+              <button type="submit" name="subject" value="physics">
+                <div
+                  class="w-32 h-32 bg-purple-500 rounded-lg mb-4 flex items-center justify-center"
+                >
+                  <img
+                    src="img/phy.png"
+                    alt="Physics Icon"
+                    class="w-24 h-24 rounded-lg object-cover"
+                  />
+                </div>
+                <p
+                  class="font-bold text-xl"
+                  style="font-family: 'Press Start 2P', cursive"
+                >
+                  PHYSICS
+                </p>
+              </button>
+            </div>
+            <div class="text-center">
+              <button type="submit" name="subject" value="biology">
+                <div
+                  class="w-32 h-32 bg-purple-500 rounded-lg mb-4 flex items-center justify-center"
+                >
+                  <img
+                    src="img/Bio.png"
+                    alt="Biology Icon"
+                    class="w-24 h-24 rounded-lg object-cover"
+                  />
+                </div>
+                <p
+                  class="font-bold text-xl"
+                  style="font-family: 'Press Start 2P', cursive"
+                >
+                  BIOLOGY
+                </p>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,6 +1,19 @@
 <?php
+
+function generateRandomString($length = 10) {
+    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $charactersLength = strlen($characters);
+    $randomString = '';
+
+    for ($i = 0; $i < $length; $i++) {
+        $randomString .= $characters[random_int(0, $charactersLength - 1)];
+    }
+
+    return $randomString;
+}
+
 // Connect to MySQL database
-$mysqli = new mysqli("localhost", "root", "", "quizziee_login");
+$mysqli = new mysqli("localhost", "root", "", "quiziee");
 
 if ($mysqli->connect_error) {
     die("Connection failed: " . $mysqli->connect_error);
@@ -15,7 +28,7 @@ $username = trim($_POST['username']); // Trim whitespace
 $password = $_POST['password'];
 
 // Debugging: Output the username
-var_dump($username);
+// var_dump($username);
 
 // Prepare and execute the query to check for user credentials
 $query = "SELECT * FROM users WHERE username = ?";
@@ -35,8 +48,19 @@ if ($result->num_rows > 0) {
     if ($password === $user['password']) {
         // Successful authentication logic here
         // Redirect or set session
-        header("Location: interface.html");
-        exit;
+        $token = generateRandomString(100);
+        $stmt = $mysqli->prepare('UPDATE users SET token = ? WHERE username = ?');
+        $stmt->bind_param("ss", $token, $username);
+        $result = $stmt->execute();
+        if($result){
+            header("Location: interface.html");
+            setcookie("token", $token, time() + (86400 * 30), "/");
+            exit;
+        }else{
+            echo "Failed to save token";
+            exit;
+        }
+        
     } else {
         echo "Invalid password!";
         exit;

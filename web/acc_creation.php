@@ -3,7 +3,7 @@
 session_start();
 
 // Connect to MySQL database
-$mysqli = new mysqli("localhost", "root", "", "quizziee_login");
+$mysqli = new mysqli("localhost", "root", "", "quiziee");
 
 if ($mysqli->connect_error) {
     die("Connection failed: " . $mysqli->connect_error);

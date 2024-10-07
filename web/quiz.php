@@ -2,7 +2,7 @@
 session_start(); // Start a session to keep track of user answers and score
 
 // Database connection
-$mysqli = new mysqli("localhost", "root", "", "quizziee_login");
+$mysqli = new mysqli("localhost", "root", "", "quiziee");
 
 // Check connection
 if ($mysqli->connect_error) {
@@ -38,11 +38,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif (isset($_POST['back'])) {
         $_SESSION['current_question']--;
     } elseif (isset($_POST['submit'])) {
-        // End the quiz if the user clicks "Submit"
-        echo "<h1>Your Score: " . $_SESSION['score'] . " out of $total_questions</h1>";
-        echo "<a href='interface.html' class='inline-block px-4 py-2 bg-purple-500 text-white rounded-lg'>Back to Subjects</a>";
-        session_destroy(); // End the session
-        exit();
+        $score = (int)$_SESSION['score'];
+        $stmt = $mysqli->prepare("SELECT * FROM users WHERE token = ?");
+        $stmt->bind_param("s", $_COOKIE["token"]);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result) {
+            $row = $result->fetch_assoc();
+            // var_dump($row);
+            if ($row["best_score"] < $score) {
+                $stmt = $mysqli->prepare("UPDATE users SET best_score = ? WHERE token = ?");
+                $stmt->bind_param("is", $score, $_COOKIE["token"]);
+                $stmt->execute();
+            }
+            echo "<h1>Your Score: " . $_SESSION['score'] . " out of $total_questions</h1>";
+            echo "<a href='interface.html' class='inline-block px-4 py-2 bg-purple-500 text-white rounded-lg'>Back to Subjects</a>";
+            session_destroy(); // End the session
+            exit();
+        } else {
+            echo "failed to get your details";
+            exit();
+        }
     }
 }
 
@@ -99,30 +115,74 @@ if ($row = $result->fetch_assoc()) {
     ];
     $correct_option = $row['correct_option'];
 } else {
-    // No more questions, show the score
-    echo "<h1>Your Score: " . $_SESSION['score'] . " out of $total_questions</h1>";
-    echo "<a href='interface.html' class='inline-block px-4 py-2 bg-purple-500 text-white rounded-lg'>Back to Subjects</a>";
-    session_destroy(); // End the session
-    exit();
+    $score = (int)$_SESSION['score'];
+    $stmt = $mysqli->prepare("SELECT * FROM users WHERE token = ?");
+    $stmt->bind_param("s", $_COOKIE["token"]);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result) {
+        $row = $result->fetch_assoc();
+        var_dump($row);
+        if ($row["best_score"] < $score) {
+            $stmt = $mysqli->prepare("UPDATE users SET best_score = ? WHERE token = ?");
+            $stmt->bind_param("is", $score, $_COOKIE["token"]);
+            $stmt->execute();
+            echo "<h1>Your Score: " . $_SESSION['score'] . " out of $total_questions</h1>";
+            echo "<a href='interface.html' class='inline-block px-4 py-2 bg-purple-500 text-white rounded-lg'>Back to Subjects</a>";
+            session_destroy(); // End the session
+            exit();
+        } else {
+            echo "not able to find you in our server";
+            exit();
+        }
+    } else {
+        echo "failed to get your details";
+        exit();
+    }
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+    <script>
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(";").shift();
+        }
+        if (!getCookie('token')) {
+            window.location.href = "/login.html";
+        }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+        rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         .option-box {
-            background-color: #f9f9f9; /* Light background for options */
-            border: 2px solid #e2e2e2; /* Light border */
-            border-radius: 0.5rem; /* Rounded corners */
-            padding: 1rem; /* Inner padding */
-            margin-bottom: 1rem; /* Spacing between options */
-            transition: background-color 0.3s; /* Smooth transition for hover effect */
+            background-color: #f9f9f9;
+            /* Light background for options */
+            border: 2px solid #e2e2e2;
+            /* Light border */
+            border-radius: 0.5rem;
+            /* Rounded corners */
+            transition: background-color 0.3s;
+            /* Smooth transition for hover effect */
         }
+
         .option-box:hover {
-            background-color: #e0e0e0; /* Change background on hover */
+            background-color: #e0e0e0;
+            /* Change background on hover */
+        }
+
+
+        label:has(input[type="radio"]:checked) {
+            background-color: #e0e0e0;
+            border: 1px solid #000;
         }
     </style>
     <title>Quiz</title>
@@ -146,6 +206,7 @@ if ($row = $result->fetch_assoc()) {
         window.onload = startTimer;
     </script>
 </head>
+
 <body class="flex items-center justify-center min-h-screen bg-white">
     <div class="bg-white border-8 border-purple-500 rounded-3xl p-16 text-center">
         <h1 class="text-5xl font-bold mb-8" style="font-family: 'Press Start 2P', cursive;">Question <?php echo $_SESSION['current_question'] + 1; ?> of <?php echo $total_questions; ?></h1>
@@ -155,26 +216,34 @@ if ($row = $result->fetch_assoc()) {
         <form action="quiz.php" method="POST">
             <input type="hidden" name="subject" value="<?php echo htmlspecialchars($subject); ?>">
             <input type="hidden" name="correct_option" value="<?php echo htmlspecialchars($correct_option); ?>">
-            <ul class="list-disc list-inside mb-4">
+            <ul class="list-style-none list-inside mb-4">
                 <?php foreach ($options as $key => $option): ?>
                     <li>
-                        <div class="option-box">
-                            <label>
-                                <input type="radio" name="answer" value="<?php echo $key; ?>">
-                                <?php echo htmlspecialchars($option); ?>
-                            </label>
-                        </div>
+                        <label class="option-box block p-5 mb-5 w-full checked:black" for="<?php echo ($option) ?>">
+                            <input id="<?php echo ($option) ?>" class="hidden" type="radio" name="answer" value="<?php echo $key; ?>">
+                            <?php echo htmlspecialchars($option); ?>
+                        </label>
                     </li>
                 <?php endforeach; ?>
             </ul>
             <div class="flex justify-between">
                 <button type="submit" name="back" class="px-4 py-2 bg-gray-500 text-white rounded-lg">Previous Question</button>
-                <button type="submit" name="next" class="px-4 py-2 bg-blue-500 text-white rounded-lg">Next Question</button>
-                <button type="submit" name="submit" id="submitTest" class="px-4 py-2 bg-red-500 text-white rounded-lg">Submit Test</button>
+                <?php
+                if ($_SESSION['current_question'] + 1 < $total_questions) {
+                    echo ('
+                        <button type="submit" name="next" class="px-4 py-2 bg-blue-500 text-white rounded-lg">Next Question</button>
+                        ');
+                } else {
+                    echo ('
+                        <button type="submit" name="submit" id="submitTest" class="px-4 py-2 bg-red-500 text-white rounded-lg">Submit Test</button>
+                        ');
+                }
+                ?>
             </div>
         </form>
     </div>
 </body>
+
 </html>
 
 <?php
