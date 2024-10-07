@@ -51,9 +51,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt->bind_param("is", $score, $_COOKIE["token"]);
                 $stmt->execute();
             }
+            echo "<script>
+            window.location.href='./score.php'</script>";
             echo "<h1>Your Score: " . $_SESSION['score'] . " out of $total_questions</h1>";
             echo "<a href='interface.html' class='inline-block px-4 py-2 bg-purple-500 text-white rounded-lg'>Back to Subjects</a>";
             session_destroy(); // End the session
+            setcookie("latestScore", $score, time() + (86400 * 30), "/");
             exit();
         } else {
             echo "failed to get your details";
@@ -127,9 +130,12 @@ if ($row = $result->fetch_assoc()) {
             $stmt = $mysqli->prepare("UPDATE users SET best_score = ? WHERE token = ?");
             $stmt->bind_param("is", $score, $_COOKIE["token"]);
             $stmt->execute();
+            echo "<script>
+            window.location.href='./score.php'</script>";
             echo "<h1>Your Score: " . $_SESSION['score'] . " out of $total_questions</h1>";
             echo "<a href='interface.html' class='inline-block px-4 py-2 bg-purple-500 text-white rounded-lg'>Back to Subjects</a>";
             session_destroy(); // End the session
+            setcookie("latestScore", $score, time() + (86400 * 30), "/");
             exit();
         } else {
             echo "not able to find you in our server";

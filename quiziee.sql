@@ -2,10 +2,10 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1
--- Generation Time: Oct 07, 2024 at 06:29 PM
+-- Host: localhost
+-- Generation Time: Oct 07, 2024 at 11:25 PM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.0.30
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `quizziee_login`
+-- Database: `quiziee`
 --
 
 -- --------------------------------------------------------
@@ -228,16 +228,20 @@ CREATE TABLE `users` (
   `id` int(11) NOT NULL,
   `username` varchar(50) NOT NULL,
   `email` varchar(50) NOT NULL,
-  `password` varchar(255) NOT NULL
+  `password` varchar(255) NOT NULL,
+  `token` varchar(255) DEFAULT NULL,
+  `best_score` int(100) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `email`, `password`) VALUES
-(1, 'exampleUser', 'user@example.com', 'examplePassword'),
-(2, 'Vigi', 'hdhggn@fdhh.ci', 'High');
+INSERT INTO `users` (`id`, `username`, `email`, `password`, `token`, `best_score`) VALUES
+(1, 'exampleUser', 'user@example.com', 'examplePassword', '', 0),
+(2, 'Vigi', 'hdhggn@fdhh.ci', 'High', '', 0),
+(3, 'Yash', 'yash@gmail.com', '123', 'JXIokvZJ7Y2KhqJJDonuOj0doZQQXd8dwd5XDVITS4nwOi3jRF9oVNUxaYX1F242NHMjQrqycXkXYHgwKGZ6poityVSon9AOwpFN', 2),
+(4, 'lmao', 'lmao@hehe.com', 'lmao', 'heEHttvmBngeZWSzlPgRfoV3MZW4FZLtZ4f05YZrY4HQVB0t71ByQ7JrqJNLQyks70nH5bczCVtKHXmjmA2hKswHi9EZyL0PkzEg', 8);
 
 --
 -- Indexes for dumped tables
@@ -307,7 +311,7 @@ ALTER TABLE `physics_questions`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
