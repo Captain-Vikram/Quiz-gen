@@ -3,7 +3,7 @@
 
 
 
-$mysqli = new mysqli("localhost", "root", "", "quiziee");
+$mysqli = new mysqli("localhost", "root", "", "quizziee");
 
 if ($mysqli->connect_error) {
     die("Connection failed: " . $mysqli->connect_error);

@@ -2,7 +2,7 @@
 session_start(); // Start a session to keep track of user answers and score
 
 // Database connection
-$mysqli = new mysqli("localhost", "root", "", "quiziee");
+$mysqli = new mysqli("localhost", "root", "", "quizziee");
 
 // Check connection
 if ($mysqli->connect_error) {
@@ -13,10 +13,17 @@ if ($mysqli->connect_error) {
 if (!isset($_SESSION['current_question'])) {
     $_SESSION['current_question'] = 0; // Track current question index
     $_SESSION['score'] = 0; // Track user's score
+    $_SESSION['answered_count'] = 0; // Count of answered questions
+    $_SESSION['unanswered'] = []; // Track unanswered questions
+    $_SESSION['asked_questions'] = []; // Track all appeared questions
+    $_SESSION['answered_questions'] = []; // Track answered questions
 }
 
 // Set total questions for the quiz based on user's selection
-$total_questions = isset($_POST['num_questions']) ? intval($_POST['num_questions']) : 10; // Default to 10 if not set
+if (!isset($_SESSION['total_questions'])) {
+    $_SESSION['total_questions'] = isset($_POST['num_questions']) ? intval($_POST['num_questions']) : 10; // Set total questions
+}
+$total_questions = $_SESSION['total_questions'];
 
 // Check if a subject has been selected, and store it in session
 if (isset($_POST['subject'])) {
@@ -31,43 +38,38 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($_POST['answer'] === $correct_option) {
             $_SESSION['score']++; // Increment score if answer is correct
         }
+        $_SESSION['answered_count']++; // Increment answered question count
+        $_SESSION['answered_questions'][] = $_SESSION['current_question']; // Track answered question
+    } elseif (isset($_POST['skip'])) {
+        $_SESSION['unanswered'][] = $_SESSION['current_question']; // Track skipped question
     }
-    // Move to the next question or stay on the current question if skipping
+
+    // Handle navigation between questions
     if (isset($_POST['next'])) {
         $_SESSION['current_question']++;
     } elseif (isset($_POST['back'])) {
         $_SESSION['current_question']--;
+    } elseif (isset($_POST['skip'])) {
+        // Skip to the next question
+        $_SESSION['current_question']++;
     } elseif (isset($_POST['submit'])) {
-        $score = (int)$_SESSION['score'];
-        $stmt = $mysqli->prepare("SELECT * FROM users WHERE token = ?");
-        $stmt->bind_param("s", $_COOKIE["token"]);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        if ($result) {
-            $row = $result->fetch_assoc();
-            // var_dump($row);
-            if ($row["best_score"] < $score) {
-                $stmt = $mysqli->prepare("UPDATE users SET best_score = ? WHERE token = ?");
-                $stmt->bind_param("is", $score, $_COOKIE["token"]);
-                $stmt->execute();
-            }
+        // Check for unanswered questions before submitting
+        if (!empty($_SESSION['unanswered'])) {
             echo "<script>
-            window.location.href='./score.php'</script>";
-            echo "<h1>Your Score: " . $_SESSION['score'] . " out of $total_questions</h1>";
-            echo "<a href='interface.html' class='inline-block px-4 py-2 bg-purple-500 text-white rounded-lg'>Back to Subjects</a>";
-            session_destroy(); // End the session
-            setcookie("latestScore", $score, time() + (86400 * 30), "/");
-            exit();
-        } else {
-            echo "failed to get your details";
+                alert('You have unanswered questions. Please answer them before submitting.');
+                window.location.href = 'quiz.php';
+            </script>";
+            // Redirect to the first unanswered question
+            $_SESSION['current_question'] = $_SESSION['unanswered'][0];
             exit();
         }
+        submitQuiz($mysqli);
     }
 }
 
 // Prevent going beyond the last question
-if ($_SESSION['current_question'] >= $total_questions) {
-    $_SESSION['current_question'] = $total_questions - 1;
+if ($_SESSION['current_question'] >= $_SESSION['total_questions']) {
+    $_SESSION['current_question'] = $_SESSION['total_questions'] - 1;
 }
 
 // Prevent going before the first question
@@ -98,12 +100,20 @@ if ($table_check->num_rows == 0) {
 }
 
 // Prepare a statement to fetch questions
-$stmt = $mysqli->prepare("SELECT * FROM $table LIMIT 1 OFFSET ?");
-if ($stmt === false) {
-    die("Prepare failed: " . htmlspecialchars($mysqli->error)); // Display error message
-}
+do {
+    // Get a random question offset
+    $random_offset = rand(0, $total_questions - 1);
+    // Check if we have exhausted all unique questions
+    if (count($_SESSION['asked_questions']) >= $total_questions) {
+        // Handle case where all questions have been asked
+        submitQuiz($mysqli);
+        exit(); // Exit after submitting
+    }
+} while (in_array($random_offset, $_SESSION['asked_questions']));
 
-$stmt->bind_param("i", $_SESSION['current_question']);
+$_SESSION['asked_questions'][] = $random_offset; // Track the appeared question index
+$stmt = $mysqli->prepare("SELECT * FROM $table LIMIT 1 OFFSET ?");
+$stmt->bind_param("i", $random_offset);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -117,7 +127,22 @@ if ($row = $result->fetch_assoc()) {
         'd' => $row['option_d'],
     ];
     $correct_option = $row['correct_option'];
+
+    // Randomize the options
+    $keys = array_keys($options);
+    shuffle($keys);
+    
+    $shuffled_options = [];
+    foreach ($keys as $key) {
+        $shuffled_options[$key] = $options[$key];
+    }
+
+    $options = $shuffled_options; // Update to shuffled options
 } else {
+    submitQuiz($mysqli);
+}
+
+function submitQuiz($mysqli) {
     $score = (int)$_SESSION['score'];
     $stmt = $mysqli->prepare("SELECT * FROM users WHERE token = ?");
     $stmt->bind_param("s", $_COOKIE["token"]);
@@ -125,24 +150,19 @@ if ($row = $result->fetch_assoc()) {
     $result = $stmt->get_result();
     if ($result) {
         $row = $result->fetch_assoc();
-        var_dump($row);
         if ($row["best_score"] < $score) {
             $stmt = $mysqli->prepare("UPDATE users SET best_score = ? WHERE token = ?");
             $stmt->bind_param("is", $score, $_COOKIE["token"]);
             $stmt->execute();
-            echo "<script>
-            window.location.href='./score.php'</script>";
-            echo "<h1>Your Score: " . $_SESSION['score'] . " out of $total_questions</h1>";
-            echo "<a href='interface.html' class='inline-block px-4 py-2 bg-purple-500 text-white rounded-lg'>Back to Subjects</a>";
-            session_destroy(); // End the session
-            setcookie("latestScore", $score, time() + (86400 * 30), "/");
-            exit();
-        } else {
-            echo "not able to find you in our server";
-            exit();
         }
+        echo "<script>window.location.href='./score.php'</script>";
+        echo "<h1>Your Score: " . $_SESSION['score'] . " out of " . $_SESSION['total_questions'] . "</h1>";
+        echo "<a href='interface.html' class='inline-block px-4 py-2 bg-purple-500 text-white rounded-lg'>Back to Subjects</a>";
+        session_destroy(); // End the session
+        setcookie("latestScore", $score, time() + (86400 * 30), "/");
+        exit();
     } else {
-        echo "failed to get your details";
+        echo "Failed to get your details";
         exit();
     }
 }
@@ -150,12 +170,11 @@ if ($row = $result->fetch_assoc()) {
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <script>
         function getCookie(name) {
             const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
+            const parts = value.split(`; ${name}=`); 
             if (parts.length === 2) return parts.pop().split(";").shift();
         }
         if (!getCookie('token')) {
@@ -163,28 +182,18 @@ if ($row = $result->fetch_assoc()) {
         }
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
-        rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
     <style>
         .option-box {
-            background-color: #f9f9f9;
-            /* Light background for options */
-            border: 2px solid #e2e2e2;
-            /* Light border */
-            border-radius: 0.5rem;
-            /* Rounded corners */
-            transition: background-color 0.3s;
-            /* Smooth transition for hover effect */
+            background-color: #f9f9f9; /* Light background for options */
+            border: 2px solid #e2e2e2; /* Light border */
+            border-radius: 0.5rem; /* Rounded corners */
+            transition: background-color 0.3s; /* Smooth transition for hover effect */
         }
 
         .option-box:hover {
-            background-color: #e0e0e0;
-            /* Change background on hover */
+            background-color: #e0e0e0; /* Change background on hover */
         }
-
 
         label:has(input[type="radio"]:checked) {
             background-color: #e0e0e0;
@@ -194,16 +203,17 @@ if ($row = $result->fetch_assoc()) {
     <title>Quiz</title>
 
     <script>
-        let timeLeft = <?php echo isset($_POST['time_limit']) ? intval($_POST['time_limit']) * 60 : 30; ?>; // Default to 5 minutes (300 seconds)
+        let timeLeft = <?php echo isset($_POST['time_limit']) ? intval($_POST['time_limit']) * 60 : 30; ?>; // Default to 30 seconds
 
         function startTimer() {
-            let timer = setInterval(function() {
+            let timer = setInterval(function () {
                 let minutes = Math.floor(timeLeft / 60);
                 let seconds = timeLeft % 60;
                 document.getElementById("timer").innerHTML = `Time Left: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
                 if (timeLeft <= 0) {
                     clearInterval(timer);
-                    document.getElementById("submitTest").click(); // Submit the test automatically
+                    alert("Time's up! Skipping to the next question.");
+                    document.getElementById("skipTest").click(); // Automatically skip the question
                 }
                 timeLeft--;
             }, 1000);
@@ -212,7 +222,6 @@ if ($row = $result->fetch_assoc()) {
         window.onload = startTimer;
     </script>
 </head>
-
 <body class="flex items-center justify-center min-h-screen bg-white">
     <div class="bg-white border-8 border-purple-500 rounded-3xl p-16 text-center">
         <h1 class="text-5xl font-bold mb-8" style="font-family: 'Press Start 2P', cursive;">Question <?php echo $_SESSION['current_question'] + 1; ?> of <?php echo $total_questions; ?></h1>
@@ -225,8 +234,8 @@ if ($row = $result->fetch_assoc()) {
             <ul class="list-style-none list-inside mb-4">
                 <?php foreach ($options as $key => $option): ?>
                     <li>
-                        <label class="option-box block p-5 mb-5 w-full checked:black" for="<?php echo ($option) ?>">
-                            <input id="<?php echo ($option) ?>" class="hidden" type="radio" name="answer" value="<?php echo $key; ?>">
+                        <label class="option-box block p-5 mb-5 w-full" for="<?php echo ($key) ?>">
+                            <input id="<?php echo ($key) ?>" class="hidden" type="radio" name="answer" value="<?php echo $key; ?>">
                             <?php echo htmlspecialchars($option); ?>
                         </label>
                     </li>
@@ -234,22 +243,18 @@ if ($row = $result->fetch_assoc()) {
             </ul>
             <div class="flex justify-between">
                 <button type="submit" name="back" class="px-4 py-2 bg-gray-500 text-white rounded-lg">Previous Question</button>
+                <button type="submit" name="skip" id="skipTest" class="px-4 py-2 bg-yellow-500 text-white rounded-lg">Skip Question</button>
                 <?php
                 if ($_SESSION['current_question'] + 1 < $total_questions) {
-                    echo ('
-                        <button type="submit" name="next" class="px-4 py-2 bg-blue-500 text-white rounded-lg">Next Question</button>
-                        ');
+                    echo '<button type="submit" name="next" class="px-4 py-2 bg-blue-500 text-white rounded-lg">Next Question</button>';
                 } else {
-                    echo ('
-                        <button type="submit" name="submit" id="submitTest" class="px-4 py-2 bg-red-500 text-white rounded-lg">Submit Test</button>
-                        ');
+                    echo '<button type="submit" name="submit" id="submitTest" class="px-4 py-2 bg-red-500 text-white rounded-lg" ' . (empty($_SESSION['unanswered']) ? '' : 'disabled') . '>Submit Test</button>';
                 }
                 ?>
             </div>
         </form>
     </div>
 </body>
-
 </html>
 
 <?php
