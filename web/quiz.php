@@ -17,6 +17,7 @@ if (!isset($_SESSION['current_question'])) {
     $_SESSION['unanswered'] = []; // Track unanswered questions
     $_SESSION['asked_questions'] = []; // Track all appeared questions
     $_SESSION['answered_questions'] = []; // Track answered questions
+    $_SESSION['quiz_start_time'] = time(); // Start time of the quiz
 }
 
 // Set total questions for the quiz based on user's selection
@@ -180,6 +181,26 @@ function submitQuiz($mysqli) {
         if (!getCookie('token')) {
             window.location.href = "/login.html";
         }
+
+        // Timer logic (300 seconds = 5 minutes)
+        let timeLeft = <?php echo time() - $_SESSION['quiz_start_time']; ?>;
+        let maxTime = 300; // 5 minutes = 300 seconds
+        function startTimer() {
+            let timer = setInterval(function () {
+                let remainingTime = maxTime - timeLeft;
+                if (remainingTime <= 0) {
+                    clearInterval(timer);
+                    alert("Time's up! Redirecting to leaderboard.");
+                    window.location.href = "leaderboard.php?score=<?php echo $_SESSION['score']; ?>";
+                } else {
+                    let minutes = Math.floor(remainingTime / 60);
+                    let seconds = remainingTime % 60;
+                    document.getElementById("timer").innerHTML = `Time Left: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                }
+                timeLeft++;
+            }, 1000);
+        }
+        window.onload = startTimer;
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
@@ -201,26 +222,6 @@ function submitQuiz($mysqli) {
         }
     </style>
     <title>Quiz</title>
-
-    <script>
-        let timeLeft = <?php echo isset($_POST['time_limit']) ? intval($_POST['time_limit']) * 60 : 30; ?>; // Default to 30 seconds
-
-        function startTimer() {
-            let timer = setInterval(function () {
-                let minutes = Math.floor(timeLeft / 60);
-                let seconds = timeLeft % 60;
-                document.getElementById("timer").innerHTML = `Time Left: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-                if (timeLeft <= 0) {
-                    clearInterval(timer);
-                    alert("Time's up! Skipping to the next question.");
-                    document.getElementById("skipTest").click(); // Automatically skip the question
-                }
-                timeLeft--;
-            }, 1000);
-        }
-
-        window.onload = startTimer;
-    </script>
 </head>
 <body class="flex items-center justify-center min-h-screen bg-white">
     <div class="bg-white border-8 border-purple-500 rounded-3xl p-16 text-center">
@@ -234,31 +235,18 @@ function submitQuiz($mysqli) {
             <ul class="list-style-none list-inside mb-4">
                 <?php foreach ($options as $key => $option): ?>
                     <li>
-                        <label class="option-box block p-5 mb-5 w-full" for="<?php echo ($key) ?>">
-                            <input id="<?php echo ($key) ?>" class="hidden" type="radio" name="answer" value="<?php echo $key; ?>">
-                            <?php echo htmlspecialchars($option); ?>
+                        <label class="option-box p-4 mb-2 block">
+                            <input type="radio" name="answer" value="<?php echo $key; ?>" class="mr-2"><?php echo htmlspecialchars($option); ?>
                         </label>
                     </li>
                 <?php endforeach; ?>
             </ul>
-            <div class="flex justify-between">
-                <button type="submit" name="back" class="px-4 py-2 bg-gray-500 text-white rounded-lg">Previous Question</button>
-                <button type="submit" name="skip" id="skipTest" class="px-4 py-2 bg-yellow-500 text-white rounded-lg">Skip Question</button>
-                <?php
-                if ($_SESSION['current_question'] + 1 < $total_questions) {
-                    echo '<button type="submit" name="next" class="px-4 py-2 bg-blue-500 text-white rounded-lg">Next Question</button>';
-                } else {
-                    echo '<button type="submit" name="submit" id="submitTest" class="px-4 py-2 bg-red-500 text-white rounded-lg" ' . (empty($_SESSION['unanswered']) ? '' : 'disabled') . '>Submit Test</button>';
-                }
-                ?>
+            <div class="flex space-x-4 justify-center">
+                <button type="submit" name="back" class="px-6 py-3 text-white bg-gray-500 hover:bg-gray-600 rounded-md">Back</button>
+                <button type="submit" name="skip" class="px-6 py-3 text-white bg-yellow-500 hover:bg-yellow-600 rounded-md">Skip</button>
+                <button type="submit" name="next" class="px-6 py-3 text-white bg-blue-500 hover:bg-blue-600 rounded-md">Next</button>
             </div>
         </form>
     </div>
 </body>
 </html>
-
-<?php
-// Close the statement and the connection
-$stmt->close();
-$mysqli->close();
-?>
